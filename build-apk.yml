@@ -1,31 +1,56 @@
 name: Build GOVINDA APK
+
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
+
 permissions:
   contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-      - name: Set up Java
+
+      - name: Verify Android project files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -f settings.gradle
+          test -f build.gradle
+          test -f app/build.gradle
+          grep -q ":app" settings.gradle
+          echo "Android project files found at repository root."
+
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-      - name: Install Android platform
+
+      - name: Install Android SDK packages
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: "8.9"
+
+      - name: Show available Gradle tasks
+        run: gradle tasks --all
+
       - name: Build debug APK
-        run: gradle assembleDebug
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify APK exists
+        run: test -f app/build/outputs/apk/debug/app-debug.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
